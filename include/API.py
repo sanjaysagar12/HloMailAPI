@@ -25,20 +25,26 @@ class APIKey:
         return {"message": "Succesfully generated API Key", "api_key": api_key}
 
     async def get(self, key=None, value=None):
-        if key:
-            data = await api_keys_collection.get(key=key, value=value)
-        else:
-            data = await api_keys_collection.get(
-                query={"email": self.__dict__["email"]}
-            )
-
         def serialize_datetime(obj):
             if isinstance(obj, datetime.datetime):
                 return obj.isoformat()
             raise TypeError("Type not serializable")
 
-        data = json.dumps(data, default=serialize_datetime)
-        data = json.loads(data)
+        if key:
+            data = await api_keys_collection.get(key=key, value=value)
+            data = json.dumps(data, default=serialize_datetime)
+            data = json.loads(data)
+        else:
+
+            data = await api_keys_collection.get(
+                query={"email": self.__dict__["email"]}
+            )
+            if data:
+                data = json.dumps(data, default=serialize_datetime)
+                data = json.loads(data)
+                return {"data": data}
+            else:
+                return {"data": data}
         if data:
             return {"valid": True, "data": data}
         return {"valid": False, "error": "invalid api key"}
