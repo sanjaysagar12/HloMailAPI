@@ -69,6 +69,8 @@ class AddApiKeyRequest(BaseModel):
 
 class NoReplyMailRequest(BaseModel):
     api_key: str
+    sender: str
+    recipient: str
     recipient_email: EmailStr
     subject: str
     body: str
@@ -76,8 +78,14 @@ class NoReplyMailRequest(BaseModel):
 
 class ContactMailRequest(BaseModel):
     api_key: str
-    subject: str
-    body: str
+    name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    message: str
+
+
+class NoSignupRequest(BaseModel):
+    email: EmailStr
 
 
 async def verify_session(token: str, client_ip: str, user_agent: str):
@@ -227,8 +235,8 @@ async def contact_mail(
         if api_key_data["type"] == "contact":
             respose = await email.send_hlomail(
                 recipient_email=api_key_data["email"],
-                subject=contact_data.subject,
-                body=contact_data.body,
+                subject=contact_data.name + "Contacted You",
+                body=contact_data.email,
                 user_email=api_key_data["email"],
             )
             respose.update({"valid": True})
@@ -270,6 +278,25 @@ async def noreply_mail(
         )
 
     raise HTTPException(status_code=401, detail=api_key_response["error"])
+
+
+@app.post("/no-signup")
+async def no_signup(
+    request: Request,
+    nosignup: NoSignupRequest,
+):
+
+    api_key = APIKey(nosignup.email)
+    api_key_response = await api_key.generate_key(
+        title="No Sign up", desc="Contact", api_type="contact"
+    )
+    await email.send(
+        recipient_email=nosignup.email,
+        subject="API-KEY",
+        body=str(api_key_response["api_key"]),
+    )
+
+    return {"valid": True, "message": "api_key created Successfully"}
 
 
 @app.post("/add-apikey")
