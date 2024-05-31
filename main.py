@@ -1,59 +1,258 @@
-from fastapi import FastAPI
-from pydantic import BaseModel, EmailStr
-import MongoDB
-import MailAPI
+import json
+import os
+import datetime
+from typing import Optional
+import sys
+import aiohttp
+from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr, ValidationError
+from fastapi.responses import JSONResponse
 
+root_path = os.path.dirname(__file__)
 
+# Initialize FastAPI
 app = FastAPI()
 
+# Configure CORS
+origins = [
+    "http://localhost:5173",  # Assuming your React app runs on port 5173
+]
 
-class AddNewServiceRequest(BaseModel):
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["Content-Type", "Token"],
+)
+
+# Load configuration from config.json
+with open(f"{root_path}/config.json", "r") as config_file:
+    config = json.load(config_file)
+
+sys.path.insert(1, f"{root_path}/include")
+
+from User import User  # type: ignore
+from Session import Session  # type: ignore
+from Authentication import Authentication  # type: ignore
+from EMail import EMail  # type: ignore
+from API import APIKey  # type: ignore
+
+email = EMail()
+session = Session()
+
+
+# Pydantic models
+class RegisterRequest(BaseModel):
     email: EmailStr
-    service_type: str
-    project_name: str
+    username: str
+    password: str
 
 
-class ContactEmailRequest(BaseModel):
+class VerifyRequest(BaseModel):
+    email: EmailStr
+    otp: int
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class AddApiKeyRequest(BaseModel):
+    title: str
+    desc: Optional[str] = None
+
+
+class ContactMailRequest(BaseModel):
     api_key: str
+    recipient_email: EmailStr
     subject: str
     body: str
 
 
-class VerifyOtpRequest(BaseModel):
-    email: EmailStr
-    otp: str
+async def verify_session(token: str, client_ip: str, user_agent: str):
+    if token is None:
+        raise HTTPException(status_code=401, detail="Token is missing")
+
+    return await session.verify(token, client_ip=client_ip, user_agent=user_agent)
 
 
-@app.get("/get-email")
-async def getEmail(api_key: str):
-    return await MongoDB.getEmail(api_key)
+@app.post("/register")
+async def register_user(request: Request):
+    try:
+        data = await request.json()
+        request_model = RegisterRequest(**data)
+    except (ValidationError, TypeError) as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
-
-@app.post("/verify-otp")
-async def verityOTP(verification_data: VerifyOtpRequest):
-    return await MailAPI.verifyOTP(verification_data.email, verification_data.otp)
-
-
-@app.post("/generate-otp")
-async def generateOTP(EMAIL: EmailStr):
-
-    return await MailAPI.sendOTP(EMAIL)
-
-
-@app.post("/add-service")
-async def addService(service_data: AddNewServiceRequest):
-    return await MongoDB.addService(
-        USER_EMAIL=service_data.email,
-        SERVICE=service_data.service_type,
-        PROJECT_NAME=service_data.project_name,
+    auth = Authentication()
+    response = await auth.register(
+        request_model.email, request_model.username, request_model.password
     )
 
+    if response["valid"]:
+        otp = response["otp"]
+        await email.send(
+            recipient_email=request_model.email,
+            subject="OTP",
+            body=str(otp),
+        )
+        return JSONResponse(
+            content={
+                "valid": True,
+                "message": "User registered successfully, please verify OTP sent to email.",
+            }
+        )
 
-@app.post("/contact/")
-async def contactEmail(email_request: ContactEmailRequest):
-    return await MailAPI.sendEmailAsync(
-        email_request.api_key, email_request.subject, email_request.body
+    return JSONResponse(content=response)
+
+
+@app.post("/verify")
+async def verify_user(request: Request):
+    try:
+        data = await request.json()
+        request_model = VerifyRequest(**data)
+    except (ValidationError, TypeError) as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    auth = Authentication()
+    result = await auth.verify(request_model.email, request_model.otp)
+    return JSONResponse(content=result)
+
+
+@app.post("/login")
+async def login_user(request: Request):
+    try:
+        data = await request.json()
+        request_model = LoginRequest(**data)
+    except (ValidationError, TypeError) as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    auth = Authentication()
+    response = await auth.login(request_model.email, request_model.password)
+
+    if response["valid"]:
+        session = Session()
+        user = User(request_model.email)
+        token = await session.start()
+        client_ip = request.client.host
+        user_agent = request.headers.get("User-Agent")
+
+        created_on = datetime.datetime.now()
+        expire_on = created_on + datetime.timedelta(days=10)
+
+        # To prevent session hijacking
+        await session.set("email", request_model.email)
+        await session.set("client_ip", client_ip)
+        await session.set("user_agent", user_agent)
+        await session.set("username", await user.get("username"))
+
+        await session.set("created_on", str(created_on))
+        await session.set("expire_on", str(expire_on))
+        response.update({"token": token["token"]})
+        return JSONResponse(content=response)
+
+    raise HTTPException(status_code=401, detail=response)
+
+
+@app.post("/profile")
+async def profile(request: Request):
+    # verifying the session
+    token = request.headers.get("Token")
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
     )
+
+    if result["valid"]:
+        user = User(await session.get("email"))
+        return JSONResponse(
+            content={
+                "valid": True,
+                "message": "Token is valid.",
+                "username": await user.get("username"),
+                "session_data": result["session_data"],
+                "user_data": await user.get(),
+                "client_ip": client_ip,
+            }
+        )
+
+    raise HTTPException(status_code=401, detail=result["error"])
+
+
+@app.post("/dashboard")
+async def dashboard(request: Request):
+
+    # verifying the session
+    token = request.headers.get("Token")
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+    if result["valid"]:
+        email = await session.get("email")
+        api_key = APIKey(email)
+        response = await api_key.get()
+        response.update({"valid": True})
+        return JSONResponse(response)
+    raise HTTPException(status_code=401, detail=result["error"])
+
+
+@app.post("/contact-mail")
+async def contact_mail(
+    contact_data: ContactMailRequest,
+):
+
+    api_key = APIKey()
+    api_key_response = await api_key.get(key="api_key", value=contact_data.api_key)
+    print(api_key_response)
+    if api_key_response["valid"]:
+        api_key_data = api_key_response["data"]
+        respose = await email.send(
+            recipient_email=contact_data.recipient_email,
+            subject=contact_data.subject,
+            body=contact_data.body,
+        )
+        respose.update({"valid": True})
+        return JSONResponse(
+            respose,
+        )
+    raise HTTPException(status_code=401, detail=api_key_response["error"])
+
+
+@app.post("/add-apikey")
+async def add_apikey(
+    request: Request,
+    project_data: AddApiKeyRequest,
+):
+    # verifying the session
+    token = request.headers.get("Token")
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+    if result["valid"]:
+        api_key = APIKey(await session.get("email"))
+        api_key_response = await api_key.generate_key(
+            title=project_data.title,
+            desc=project_data.desc,
+        )
+        api_key_response.update({"valid": True})
+        return JSONResponse(
+            api_key_response,
+        )
+    raise HTTPException(status_code=401, detail=result["error"])
 
 
 if __name__ == "__main__":
