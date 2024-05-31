@@ -41,6 +41,7 @@ from API import APIKey  # type: ignore
 
 email = EMail()
 session = Session()
+api_types = ("contact", "noreply")
 
 
 # Pydantic models
@@ -61,13 +62,20 @@ class LoginRequest(BaseModel):
 
 
 class AddApiKeyRequest(BaseModel):
+    api_type: str
     title: str
     desc: Optional[str] = None
 
 
-class ContactMailRequest(BaseModel):
+class NoReplyMailRequest(BaseModel):
     api_key: str
     recipient_email: EmailStr
+    subject: str
+    body: str
+
+
+class ContactMailRequest(BaseModel):
+    api_key: str
     subject: str
     body: str
 
@@ -216,15 +224,51 @@ async def contact_mail(
     print(api_key_response)
     if api_key_response["valid"]:
         api_key_data = api_key_response["data"]
-        respose = await email.send(
-            recipient_email=contact_data.recipient_email,
-            subject=contact_data.subject,
-            body=contact_data.body,
+        if api_key_data["type"] == "contact":
+            respose = await email.send_hlomail(
+                recipient_email=api_key_data["email"],
+                subject=contact_data.subject,
+                body=contact_data.body,
+                user_email=api_key_data["email"],
+            )
+            respose.update({"valid": True})
+            return JSONResponse(
+                respose,
+            )
+        raise HTTPException(
+            status_code=401,
+            detail="your api token type is not sutable for contact mail",
         )
-        respose.update({"valid": True})
-        return JSONResponse(
-            respose,
+
+    raise HTTPException(status_code=401, detail=api_key_response["error"])
+
+
+@app.post("/noreply-mail")
+async def noreply_mail(
+    contact_data: NoReplyMailRequest,
+):
+
+    api_key = APIKey()
+    api_key_response = await api_key.get(key="api_key", value=contact_data.api_key)
+
+    if api_key_response["valid"]:
+        api_key_data = api_key_response["data"]
+        if api_key_data["type"] == "noreply":
+            respose = await email.send_hlomail(
+                recipient_email=contact_data.recipient_email,
+                subject=contact_data.subject,
+                body=contact_data.body,
+                user_email=api_key_data["email"],
+            )
+            respose.update({"valid": True})
+            return JSONResponse(
+                respose,
+            )
+        raise HTTPException(
+            status_code=401,
+            detail="your api token type is not sutable for noreplay mail",
         )
+
     raise HTTPException(status_code=401, detail=api_key_response["error"])
 
 
@@ -237,21 +281,30 @@ async def add_apikey(
     token = request.headers.get("Token")
     client_ip = request.client.host
     user_agent = request.headers.get("User-Agent")
+
     result = await verify_session(
         token=token,
         client_ip=client_ip,
         user_agent=user_agent,
     )
+    if project_data.api_type not in api_types:
+        return {
+            "valid": False,
+            "error": "invalid api type",
+        }
+
     if result["valid"]:
         api_key = APIKey(await session.get("email"))
         api_key_response = await api_key.generate_key(
             title=project_data.title,
             desc=project_data.desc,
+            api_type=project_data.api_type,
         )
         api_key_response.update({"valid": True})
         return JSONResponse(
             api_key_response,
         )
+
     raise HTTPException(status_code=401, detail=result["error"])
 
 

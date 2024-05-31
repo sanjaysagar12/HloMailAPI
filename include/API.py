@@ -10,7 +10,7 @@ class APIKey:
     def __init__(self, email=None) -> None:
         self.__dict__["email"] = email
 
-    async def generate_key(self, title, desc=None):
+    async def generate_key(self, api_type, title, desc=None):
         api_key = secrets.token_hex(16)
         created_on = datetime.datetime.now()
         await api_keys_collection.set(
@@ -19,6 +19,7 @@ class APIKey:
                 "desc": desc,
                 "email": self.__dict__["email"],
                 "api_key": api_key,
+                "type": api_type,
                 "created_on": created_on,
             }
         )
