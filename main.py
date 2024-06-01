@@ -84,6 +84,16 @@ class ContactMailRequest(BaseModel):
     message: str
 
 
+class EditApiKeyRequest(BaseModel):
+    api_key: str
+    title: str
+    desc: Optional[str] = None
+
+
+class DeleteApiKeyRequest(BaseModel):
+    api_key: str
+
+
 class NoSignupRequest(BaseModel):
     email: EmailStr
 
@@ -280,25 +290,6 @@ async def noreply_mail(
     raise HTTPException(status_code=401, detail=api_key_response["error"])
 
 
-@app.post("/no-signup")
-async def no_signup(
-    request: Request,
-    nosignup: NoSignupRequest,
-):
-
-    api_key = APIKey(nosignup.email)
-    api_key_response = await api_key.generate_key(
-        title="No Sign up", desc="Contact", api_type="contact"
-    )
-    await email.send(
-        recipient_email=nosignup.email,
-        subject="API-KEY",
-        body=str(api_key_response["api_key"]),
-    )
-
-    return {"valid": True, "message": "api_key created Successfully"}
-
-
 @app.post("/add-apikey")
 async def add_apikey(
     request: Request,
@@ -332,6 +323,68 @@ async def add_apikey(
             api_key_response,
         )
 
+    raise HTTPException(status_code=401, detail=result["error"])
+
+
+@app.post("/edit-apikey")
+async def edit_apikey(
+    request: Request,
+    project_data: EditApiKeyRequest,
+):
+    # verifying the session
+    token = request.headers.get("Token")
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+
+    if result["valid"]:
+        api_key = APIKey(await session.get("email"))
+        api_key_response = await api_key.set(
+            key="title",
+            value=project_data.title,
+            where={"api_key": project_data.api_key},
+        )
+        api_key_response = await api_key.set(
+            key="desc",
+            value=project_data.desc,
+            where={"api_key": project_data.api_key},
+        )
+        api_key_response.update({"valid": True})
+        return JSONResponse(
+            api_key_response,
+        )
+
+    raise HTTPException(status_code=401, detail=result["error"])
+
+
+@app.post("/delete-apikey")
+async def delete_apikey(
+    request: Request,
+    project_data: DeleteApiKeyRequest,
+):
+    # verifying the session
+    token = request.headers.get("Token")
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+
+    if result["valid"]:
+        api_key = APIKey(await session.get("email"))
+        api_key_response = await api_key.delete(api_key=project_data.api_key)
+        api_key_response.update({"valid": True})
+        return JSONResponse(
+            api_key_response,
+        )
     raise HTTPException(status_code=401, detail=result["error"])
 
 

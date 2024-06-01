@@ -33,24 +33,29 @@ class MongoDB:
         data = await self.get(key=key, value=value)
         return data is not None
 
-    async def delete(self, key: str, value):
-        myquery = {key: value}
-        result = await self.collection.delete_many(myquery)
-        return "deleted" if result.deleted_count > 0 else "no documents found"
+    async def delete(self, query):
+
+        result = await self.collection.delete_many(query)
+        return (
+            {"deleted": True}
+            if result.deleted_count > 0
+            else {"deleted": True, "error": "no documents found"}
+        )
 
     async def set(
         self, key=None, value=None, where=None, increment_field=None, increment_value=0
     ):
         # Update data in Database
         if value is not None:
+            print(key, value, where)
             if where is None:
                 raise ValueError("The 'where' parameter is required for updating data.")
             newvalues = {"$set": {key: value}}
             result = await self.collection.update_many(where, newvalues)
             return (
-                f"{key} updated to {value}"
+                {"updated": True, "message": f"{key} updated to {value}"}
                 if result.modified_count > 0
-                else "no documents updated"
+                else {"updated": False, "error": "no documents updated"}
             )
 
         # Increment or decrement a field
