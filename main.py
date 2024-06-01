@@ -232,64 +232,6 @@ async def dashboard(request: Request):
     raise HTTPException(status_code=401, detail=result["error"])
 
 
-@app.post("/contact-mail")
-async def contact_mail(
-    contact_data: ContactMailRequest,
-):
-
-    api_key = APIKey()
-    api_key_response = await api_key.get(key="api_key", value=contact_data.api_key)
-    print(api_key_response)
-    if api_key_response["valid"]:
-        api_key_data = api_key_response["data"]
-        if api_key_data["type"] == "contact":
-            respose = await email.send_hlomail(
-                recipient_email=api_key_data["email"],
-                subject=contact_data.name + "Contacted You",
-                body=contact_data.email,
-                user_email=api_key_data["email"],
-            )
-            respose.update({"valid": True})
-            return JSONResponse(
-                respose,
-            )
-        raise HTTPException(
-            status_code=401,
-            detail="your api token type is not sutable for contact mail",
-        )
-
-    raise HTTPException(status_code=401, detail=api_key_response["error"])
-
-
-@app.post("/noreply-mail")
-async def noreply_mail(
-    contact_data: NoReplyMailRequest,
-):
-
-    api_key = APIKey()
-    api_key_response = await api_key.get(key="api_key", value=contact_data.api_key)
-
-    if api_key_response["valid"]:
-        api_key_data = api_key_response["data"]
-        if api_key_data["type"] == "noreply":
-            respose = await email.send_hlomail(
-                recipient_email=contact_data.recipient_email,
-                subject=contact_data.subject,
-                body=contact_data.body,
-                user_email=api_key_data["email"],
-            )
-            respose.update({"valid": True})
-            return JSONResponse(
-                respose,
-            )
-        raise HTTPException(
-            status_code=401,
-            detail="your api token type is not sutable for noreplay mail",
-        )
-
-    raise HTTPException(status_code=401, detail=api_key_response["error"])
-
-
 @app.post("/add-apikey")
 async def add_apikey(
     request: Request,
@@ -386,6 +328,64 @@ async def delete_apikey(
             api_key_response,
         )
     raise HTTPException(status_code=401, detail=result["error"])
+
+
+@app.post("/contact-mail")
+async def contact_mail(
+    contact_data: ContactMailRequest,
+):
+
+    api_key = APIKey()
+    api_key_response = await api_key.get(key="api_key", value=contact_data.api_key)
+    print(api_key_response)
+    if api_key_response["valid"]:
+        api_key_data = api_key_response["data"]
+        if api_key_data["type"] == "contact":
+            respose = await email.send_hlomail(
+                recipient_email=api_key_data["email"],
+                subject=contact_data.name + "Contacted You",
+                body=contact_data.email,
+                user_email=api_key_data["email"],
+            )
+            respose.update({"valid": True})
+            return JSONResponse(
+                respose,
+            )
+        raise HTTPException(
+            status_code=401,
+            detail="your api token type is not sutable for contact mail",
+        )
+
+    raise HTTPException(status_code=401, detail=api_key_response["error"])
+
+
+@app.post("/noreply-mail")
+async def noreply_mail(
+    contact_data: NoReplyMailRequest,
+):
+
+    api_key = APIKey()
+    api_key_response = await api_key.get(key="api_key", value=contact_data.api_key)
+
+    if api_key_response["valid"]:
+        api_key_data = api_key_response["data"]
+        if api_key_data["type"] == "noreply":
+            respose = await email.send_hlomail(
+                recipient_email=contact_data.recipient_email,
+                subject=contact_data.subject,
+                body=contact_data.body,
+                user_email=api_key_data["email"],
+            )
+            respose.update({"valid": True})
+            return JSONResponse(
+                respose,
+            )
+        raise HTTPException(
+            status_code=401,
+            detail="your api token type is not sutable for noreplay mail",
+        )
+
+    raise HTTPException(status_code=401, detail=api_key_response["error"])
 
 
 if __name__ == "__main__":

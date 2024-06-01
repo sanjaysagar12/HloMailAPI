@@ -1,4 +1,4 @@
-# MailAPI
+# HloMail API
 
 ## API Endpoints
 
@@ -184,6 +184,72 @@
 - 200 OK - API key generated successfully.
 - 401 Unauthorized - Invalid or missing token.
 
+### Edit API Key
+
+- **Endpoint:** POST /add-apikey
+
+- **Description:** Edit Title and Description of the API Key.
+
+- **Headers:**
+
+  Content-Type: application/json
+
+  Token: <your-auth-token> (Required for session verification)
+
+- **Request Body:**
+
+  ```json
+  {
+    "api_key": "your-api-key",
+    "title": "Project Title",
+    "desc": "Project Description"
+  }
+  ```
+
+- **Response:**
+
+  ```json
+  {
+    "updated": false,
+    "error": "no documents updated",
+    "valid": true
+  }
+  ```
+
+- **Status Codes:**
+
+- 200 OK - API key generated successfully.
+- 401 Unauthorized - Invalid or missing token.
+
+### Delete API Key
+
+- **Endpoint:** POST /contact-mail
+
+- **Description:** Delete the API key.
+
+- **Request Body:**
+
+  ```json
+  {
+    "api_key": "your-api-key"
+  }
+  ```
+
+- **Response:**
+
+  ```json
+  {
+    "deleted": true,
+    "valid": true
+  }
+  ```
+
+- **Status Codes:**
+
+  200 OK - Email sent successfully.
+
+  401 Unauthorized - Invalid API key.
+
 ### Send Contact Mail
 
 - **Endpoint:** POST /contact-mail
@@ -209,6 +275,40 @@
     "message": "Email sent successfully."
   }
   ```
+
+- **Status Codes:**
+
+  200 OK - Email sent successfully.
+
+  401 Unauthorized - Invalid API key.
+
+### Send No Reply Mail
+
+- **Endpoint:** POST /noreply-mail
+
+- **Description:** Sends an email to the specified recipient using the provided API key.
+
+- **Request Body:**
+
+  ```json
+  {
+    "api_key": "your-api-key",
+    "sender": "sender name",
+    "recipient": "recipient name",
+    "recipient_email": "recipient@example.com",
+    "subject": "subject",
+    "body": "body"
+  }
+  ```
+
+- **Response:**
+
+```json
+{
+  "valid": true,
+  "message": "Email sent successfully."
+}
+```
 
 - **Status Codes:**
 
