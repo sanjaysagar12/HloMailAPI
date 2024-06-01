@@ -91,6 +91,69 @@
 
   401 Unauthorized - Invalid email or password.
 
+### Forgot Password
+
+- **Endpoint:** POST /forgot-password
+
+- **Description:** Sends a password reset link to the provided email.
+
+- **Request Body:**
+
+  ````json
+
+  {
+    "email": "user@example.com"
+  }```
+  ````
+
+- **Response:**
+
+  ```json
+  {
+    "message": "Password reset link sent to your email"
+  }
+  ```
+
+- **Status Codes:**
+
+  200 OK - Password reset link sent successfully.
+
+  401 Unauthorized - Invalid request data.
+
+  404 Not Found - User not found.
+
+### Reset Password
+
+- **Endpoint:** POST /reset-password
+
+- **Description:** Resets the user's password using the token from the reset link.
+
+- **Url:** `/reset-password?token=your-token`
+
+- **Request Body:**
+
+  ```json
+  {
+    "new_password": "newpassword"
+  }
+  ```
+
+- **Response:**
+
+  ```json
+  {
+    "message": "Password reset successfully"
+  }
+  ```
+
+- **Status Codes:**
+
+  200 OK - Password reset successfully.
+
+  401 Unauthorized - Invalid or expired token.
+
+  401 Unauthorized - Invalid request data.
+
 ### Access Profile
 
 - **Endpoint:** POST /profile

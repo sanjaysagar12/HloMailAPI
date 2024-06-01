@@ -6,7 +6,7 @@ import aiosmtplib
 from fastapi import HTTPException
 from email.message import EmailMessage
 from pydantic import EmailStr
-from MongoDB import MongoDB
+from .MongoDB import MongoDB
 
 
 # Define the root path

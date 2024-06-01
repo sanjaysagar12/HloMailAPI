@@ -1,6 +1,6 @@
 import json
 
-from MongoDB import MongoDB
+from .MongoDB import MongoDB
 
 user_collection = MongoDB("admin", "users")
 
@@ -25,3 +25,9 @@ class User:
             )
 
         await user_collection.set(key)
+
+    async def is_exist(self):
+        user_data = await user_collection.get("email", self.__dict__["email"])
+        if user_data:
+            return True
+        return False

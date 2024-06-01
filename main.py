@@ -8,6 +8,18 @@ from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, ValidationError
 from fastapi.responses import JSONResponse
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from pydantic import EmailStr
+
+# Add this line to import URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer
+
+from include.MongoDB import MongoDB
+from include.User import User
+from include.Session import Session
+from include.Authentication import Authentication
+from include.EMail import EMail
+from include.API import APIKey
 
 root_path = os.path.dirname(__file__)
 
@@ -27,17 +39,15 @@ app.add_middleware(
     allow_headers=["Content-Type", "Token"],
 )
 
-# Load configuration from config.json
-with open(f"{root_path}/config.json", "r") as config_file:
-    config = json.load(config_file)
 
-sys.path.insert(1, f"{root_path}/include")
+SECRET_KEY = "your-secret-key"  # Change this to your actual secret key
+PASSWORD_RESET_TOKEN_EXPIRY = 3600  # Token expiry time in seconds (e.g., 1 hour)
 
-from User import User  # type: ignore
-from Session import Session  # type: ignore
-from Authentication import Authentication  # type: ignore
-from EMail import EMail  # type: ignore
-from API import APIKey  # type: ignore
+serializer = URLSafeTimedSerializer(SECRET_KEY)
+
+from pydantic import BaseModel
+from passlib.context import CryptContext
+
 
 email = EMail()
 session = Session()
@@ -59,6 +69,14 @@ class VerifyRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
 
 
 class AddApiKeyRequest(BaseModel):
@@ -181,6 +199,58 @@ async def login_user(request: Request):
         return JSONResponse(content=response)
 
     raise HTTPException(status_code=401, detail=response)
+
+
+@app.post("/forgot-password")
+async def forgot_password(request: Request, request_model: ForgotPasswordRequest):
+
+    user = User(request_model.email)
+
+    if not await user.is_exist():
+        raise HTTPException(status_code=404, detail="User not found")
+
+    token = serializer.dumps(request_model.email, salt="password-reset-salt")
+    reset_link = f"http://localhost:8000/reset-password?token={token}"
+
+    await email.send(
+        recipient_email=request_model.email,
+        subject="OTP",
+        body=str(reset_link),
+    )
+
+    return JSONResponse(content={"message": "Password reset link sent to your email"})
+
+
+@app.post("/reset-password")
+async def reset_password(request: Request, token: str):
+
+    try:
+        data = await request.json()
+        request_model = ResetPasswordRequest(**data)
+    except (ValidationError, TypeError) as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    try:
+        email = serializer.loads(
+            token,
+            salt="password-reset-salt",
+            max_age=PASSWORD_RESET_TOKEN_EXPIRY,
+        )
+    except SignatureExpired:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except BadSignature:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    authentication_collection = MongoDB("admin", "authentication")
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+    hashed_password = pwd_context.hash(request_model.new_password)
+    await authentication_collection.set(
+        key="password",
+        value=hashed_password,
+        where={"email": email},
+    )
+
+    return JSONResponse(content={"message": "Password reset successfully"})
 
 
 @app.post("/profile")
