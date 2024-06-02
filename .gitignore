@@ -1,4 +1,4 @@
-include/__pycache__
-__pycache__
+include/__pycache__/
+__pycache__/
 include/test.py
 test.py
