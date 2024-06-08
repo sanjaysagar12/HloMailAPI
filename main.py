@@ -4,7 +4,7 @@ import datetime
 from typing import Optional
 import sys
 import aiohttp
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Header, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, ValidationError
 from fastapi.responses import JSONResponse
@@ -116,6 +116,18 @@ class NoSignupRequest(BaseModel):
     email: EmailStr
 
 
+async def get_token_header(authorization: Optional[str] = Header(None)):
+    if authorization is None:
+        raise HTTPException(status_code=400, detail="Authorization header missing")
+
+    # Assuming the token is prefixed with "Bearer "
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=400, detail="Invalid authorization format")
+
+    token = authorization[len("Bearer ") :]
+    return token
+
+
 async def verify_session(token: str, client_ip: str, user_agent: str):
     if token is None:
         raise HTTPException(status_code=401, detail="Token is missing")
@@ -124,12 +136,7 @@ async def verify_session(token: str, client_ip: str, user_agent: str):
 
 
 @app.post("/register")
-async def register_user(request: Request):
-    try:
-        data = await request.json()
-        request_model = RegisterRequest(**data)
-    except (ValidationError, TypeError) as e:
-        raise HTTPException(status_code=401, detail=str(e))
+async def register_user(request_model: RegisterRequest):
 
     auth = Authentication()
     response = await auth.register(
@@ -154,12 +161,7 @@ async def register_user(request: Request):
 
 
 @app.post("/verify")
-async def verify_user(request: Request):
-    try:
-        data = await request.json()
-        request_model = VerifyRequest(**data)
-    except (ValidationError, TypeError) as e:
-        raise HTTPException(status_code=401, detail=str(e))
+async def verify_user(request_model: VerifyRequest):
 
     auth = Authentication()
     result = await auth.verify(request_model.email, request_model.otp)
@@ -167,12 +169,7 @@ async def verify_user(request: Request):
 
 
 @app.post("/login")
-async def login_user(request: Request):
-    try:
-        data = await request.json()
-        request_model = LoginRequest(**data)
-    except (ValidationError, TypeError) as e:
-        raise HTTPException(status_code=401, detail=str(e))
+async def login_user(request: Request, request_model: LoginRequest):
 
     auth = Authentication()
     response = await auth.login(request_model.email, request_model.password)
@@ -254,9 +251,9 @@ async def reset_password(request: Request, token: str):
 
 
 @app.post("/profile")
-async def profile(request: Request):
+async def profile(request: Request, token: str = Depends(get_token_header)):
     # verifying the session
-    token = request.headers.get("Token")
+
     client_ip = request.client.host
     user_agent = request.headers.get("User-Agent")
     result = await verify_session(
@@ -282,10 +279,10 @@ async def profile(request: Request):
 
 
 @app.post("/dashboard")
-async def dashboard(request: Request):
+async def dashboard(request: Request, token: str = Depends(get_token_header)):
 
     # verifying the session
-    token = request.headers.get("Token")
+
     client_ip = request.client.host
     user_agent = request.headers.get("User-Agent")
     result = await verify_session(
@@ -306,9 +303,10 @@ async def dashboard(request: Request):
 async def add_apikey(
     request: Request,
     project_data: AddApiKeyRequest,
+    token: str = Depends(get_token_header),
 ):
     # verifying the session
-    token = request.headers.get("Token")
+
     client_ip = request.client.host
     user_agent = request.headers.get("User-Agent")
 
@@ -342,9 +340,10 @@ async def add_apikey(
 async def edit_apikey(
     request: Request,
     project_data: EditApiKeyRequest,
+    token: str = Depends(get_token_header),
 ):
     # verifying the session
-    token = request.headers.get("Token")
+
     client_ip = request.client.host
     user_agent = request.headers.get("User-Agent")
 
@@ -378,9 +377,9 @@ async def edit_apikey(
 async def delete_apikey(
     request: Request,
     project_data: DeleteApiKeyRequest,
+    token: str = Depends(get_token_header),
 ):
     # verifying the session
-    token = request.headers.get("Token")
     client_ip = request.client.host
     user_agent = request.headers.get("User-Agent")
 
