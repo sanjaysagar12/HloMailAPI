@@ -14,6 +14,7 @@ from pydantic import EmailStr
 # Add this line to import URLSafeTimedSerializer
 from itsdangerous import URLSafeTimedSerializer
 
+from include.Logs import Logs
 from include.MongoDB import MongoDB
 from include.User import User
 from include.Session import Session
@@ -399,6 +400,41 @@ async def delete_apikey(
     raise HTTPException(status_code=401, detail=result["error"])
 
 
+class LogsRequest(BaseModel):
+    api_key: Optional[str] = None
+    time_period: str
+
+
+@app.post("/logs")
+async def logs(
+    request: Request,
+    logs_data: LogsRequest,
+    token: str = Depends(get_token_header),
+):
+    # verifying the session
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+    logs = Logs("example_email")
+    if result["valid"]:
+
+        if logs_data.time_period == "today":
+            log_result = await logs.get_todays_data(logs_data.api_key)
+        elif logs_data.time_period == "week":
+            log_result = await logs.get_weeks_data(logs_data.api_key)
+        elif logs_data.time_period == "month":
+            log_result = await logs.get_months_data(logs_data.api_key)
+        elif logs_data.time_period == "year":
+            log_result = await logs.get_years_data(logs_data.api_key)
+        print("log_result:", log_result)
+        return JSONResponse({"valid": True, "log_result": log_result})
+
+
 @app.post("/contact-mail")
 async def contact_mail(
     contact_data: ContactMailRequest,
@@ -416,6 +452,8 @@ async def contact_mail(
                 body=contact_data.email,
                 user_email=api_key_data["email"],
             )
+            logs = Logs(await session.get("email"))
+            await logs.set(api_key=contact_data.api_key)
             respose.update({"valid": True})
             return JSONResponse(
                 respose,
@@ -430,22 +468,24 @@ async def contact_mail(
 
 @app.post("/noreply-mail")
 async def noreply_mail(
-    contact_data: NoReplyMailRequest,
+    noreply_data: NoReplyMailRequest,
 ):
 
     api_key = APIKey()
-    api_key_response = await api_key.get(key="api_key", value=contact_data.api_key)
+    api_key_response = await api_key.get(key="api_key", value=noreply_data.api_key)
 
     if api_key_response["valid"]:
         api_key_data = api_key_response["data"]
         if api_key_data["type"] == "noreply":
             respose = await email.send_hlomail(
-                recipient_email=contact_data.recipient_email,
-                subject=contact_data.subject,
-                body=contact_data.body,
+                recipient_email=noreply_data.recipient_email,
+                subject=noreply_data.subject,
+                body=noreply_data.body,
                 user_email=api_key_data["email"],
             )
             respose.update({"valid": True})
+            logs = Logs(await session.get("email"))
+            await logs.set(api_key=noreply_data.api_key)
             return JSONResponse(
                 respose,
             )
