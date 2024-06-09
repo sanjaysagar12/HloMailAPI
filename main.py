@@ -420,7 +420,7 @@ async def logs(
         client_ip=client_ip,
         user_agent=user_agent,
     )
-    logs = Logs("example_email")
+    logs = Logs(await session.get("email"))
     if result["valid"]:
 
         if logs_data.time_period == "today":
