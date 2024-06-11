@@ -30,7 +30,7 @@ app = FastAPI()
 # Configure CORS
 origins = [
     "http://localhost:5173",  # Assuming your React app runs on port 5173
-    "https://hlomail.sanjaysagar.com",
+    "https://hlomail-frontend.sanjaysagar.com/",
 ]
 
 app.add_middleware(
