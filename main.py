@@ -426,11 +426,11 @@ async def logs(
         if logs_data.time_period == "today":
             log_result = await logs.get_todays_data(logs_data.api_key)
         elif logs_data.time_period == "week":
-            log_result = await logs.get_weeks_data(logs_data.api_key)
+            log_result = await logs.get_weeks_data(logs_data.api_key, brief=True)
         elif logs_data.time_period == "month":
-            log_result = await logs.get_months_data(logs_data.api_key)
+            log_result = await logs.get_months_data(logs_data.api_key, brief=True)
         elif logs_data.time_period == "year":
-            log_result = await logs.get_years_data(logs_data.api_key)
+            log_result = await logs.get_years_data(logs_data.api_key, brief=True)
         print("log_result:", log_result)
         return JSONResponse({"valid": True, "log_result": log_result})
 
