@@ -1,7 +1,7 @@
 from collections import defaultdict
 import datetime
 import json
-from MongoDB import MongoDB
+from .MongoDB import MongoDB
 
 
 class Logs:
