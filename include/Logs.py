@@ -33,6 +33,8 @@ class Logs:
         if api_key:
             query["api_key"] = api_key
         data = await self.logs_collection.get(query=query)
+        if brief:
+            return self._group_by_hour(data)
         return self._make_serializable(data)
 
     async def get_weeks_data(self, api_key=None, brief=False):
@@ -75,23 +77,30 @@ class Logs:
                 document["time"] = document["time"].isoformat()
         return data
 
+    def _group_by_hour(self, data):
+        hour_counts = defaultdict(int)
+        for document in data:
+            hour = document["time"].hour
+            hour_counts[hour] += 1
+        return hour_counts
+
     def _group_by_month(self, data):
         month_counts = defaultdict(int)
         for document in data:
             month = document["time"].month
             month_counts[month] += 1
-        return [month_counts]
+        return month_counts
 
     def _group_by_week(self, data):
         week_counts = defaultdict(int)
         for document in data:
             week = document["time"].isocalendar()[1]
             week_counts[week] += 1
-        return [week_counts]
+        return week_counts
 
     def _group_by_year(self, data):
         year_counts = defaultdict(int)
         for document in data:
             year = document["time"].year
             year_counts[year] += 1
-        return [year_counts]
+        return year_counts

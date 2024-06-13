@@ -14,15 +14,15 @@ class Session:
         token = secrets.token_hex(16)
         print(token)
         await session_collection.set({"token": token})
-        self.__dict__["token"] = token
+        self.token = token
         return {"token": token}
 
     async def destroy(self):
-        await session_collection.delete(key="token", value=self.__dict__["token"])
+        await session_collection.delete(key="token", value=self.token)
 
     async def get(self, key=None):
 
-        data = await session_collection.get(key="token", value=self.__dict__["token"])
+        data = await session_collection.get(key="token", value=self.token)
 
         if data:
             if key:
@@ -35,12 +35,12 @@ class Session:
             key=key,
             value=value,
             where={
-                "token": self.__dict__["token"],
+                "token": self.token,
             },
         )
 
     async def verify(self, token, client_ip, user_agent):
-        self.__dict__["token"] = token
+        self.token = token
         is_valid = await self.get()
         if is_valid:
             # Get the current date and time

@@ -21,6 +21,7 @@ from include.Session import Session
 from include.Authentication import Authentication
 from include.EMail import EMail
 from include.API import APIKey
+import include.Inbox as Inbox
 
 root_path = os.path.dirname(__file__)
 
@@ -38,7 +39,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Content-Type", "Token"],
+    allow_headers=["*"],
 )
 
 
@@ -89,19 +90,22 @@ class AddApiKeyRequest(BaseModel):
 
 class NoReplyMailRequest(BaseModel):
     api_key: str
-    sender: str
-    recipient: str
+    recipient: Optional[str] = None
     recipient_email: EmailStr
-    subject: str
-    body: str
+    subject: Optional[str] = None
+    header: Optional[str] = None
+    body: Optional[str] = None
+    footer: Optional[str] = None
+    template: Optional[str] = None
 
 
 class ContactMailRequest(BaseModel):
     api_key: str
-    name: str
-    email: EmailStr
-    phone: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_no: Optional[str] = None
     message: str
+    template: Optional[str] = None
 
 
 class EditApiKeyRequest(BaseModel):
@@ -116,6 +120,10 @@ class DeleteApiKeyRequest(BaseModel):
 
 class NoSignupRequest(BaseModel):
     email: EmailStr
+
+
+class ApiDashboardRequest(BaseModel):
+    api_key: str
 
 
 async def get_token_header(authorization: Optional[str] = Header(None)):
@@ -301,6 +309,35 @@ async def dashboard(request: Request, token: str = Depends(get_token_header)):
     raise HTTPException(status_code=401, detail=result["error"])
 
 
+@app.post("/api-dashboard")
+async def api_dashboard(
+    request: Request,
+    api_key_data: ApiDashboardRequest,
+    token: str = Depends(get_token_header),
+):
+
+    # verifying the session
+
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+    if result["valid"]:
+        logs = Logs(await session.get("email"))
+        email = await session.get("email")
+        user = User(email)
+
+        today_intraction = await logs.get_todays_data(api_key_data.api_key, brief=True)
+        credit = await user.get("credit")
+        response = {"credit": credit, "today_intraction": today_intraction}
+        response.update({"valid": True})
+        return JSONResponse(response)
+    raise HTTPException(status_code=401, detail=result["error"])
+
+
 @app.post("/add-apikey")
 async def add_apikey(
     request: Request,
@@ -362,12 +399,9 @@ async def edit_apikey(
             value=project_data.title,
             where={"api_key": project_data.api_key},
         )
-        api_key_response = await api_key.set(
-            key="desc",
-            value=project_data.desc,
-            where={"api_key": project_data.api_key},
-        )
+
         api_key_response.update({"valid": True})
+        print("API KEY response", api_key_response)
         return JSONResponse(
             api_key_response,
         )
@@ -406,6 +440,7 @@ class LogsRequest(BaseModel):
     time_period: str
 
 
+
 @app.post("/logs")
 async def logs(
     request: Request,
@@ -422,18 +457,71 @@ async def logs(
         user_agent=user_agent,
     )
     logs = Logs(await session.get("email"))
+
+    log_result = ""
     if result["valid"]:
+        if logs_data.api_key == "*":
+            logs_data.api_key = None
 
         if logs_data.time_period == "today":
-            log_result = await logs.get_todays_data(logs_data.api_key)
+            log_result = await logs.get_todays_data(logs_data.api_key, brief=True)
         elif logs_data.time_period == "week":
             log_result = await logs.get_weeks_data(logs_data.api_key, brief=True)
         elif logs_data.time_period == "month":
             log_result = await logs.get_months_data(logs_data.api_key, brief=True)
         elif logs_data.time_period == "year":
             log_result = await logs.get_years_data(logs_data.api_key, brief=True)
-        print("log_result:", log_result)
-        return JSONResponse({"valid": True, "log_result": log_result})
+        print(log_result)
+        return JSONResponse({"valid": True, "interactions": dict(log_result)})
+
+
+@app.get("/inbox-message/{message_id}")
+async def inbox(
+    request: Request,
+    message_id:str,
+    token: str = Depends(get_token_header),
+    
+):
+    # verifying the session
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+   
+ 
+    if result["valid"]:
+
+        inbox = await Inbox.get_message_by_id(await session.get("email"),message_id=message_id)
+        print(inbox)
+        await Inbox.update_readed_status(email= await session.get("email"),message_id=message_id)
+        return {"valid": True, "inbox": inbox}
+
+@app.get("/inbox")
+async def inbox(
+    request: Request,
+    token: str = Depends(get_token_header),
+):
+    # verifying the session
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+   
+ 
+    if result["valid"]:
+
+        inbox = await Inbox.get_all_message_titles(await session.get("email"))
+        print(inbox)
+  
+        return {"valid": True, "inbox": inbox}
 
 
 @app.post("/contact-mail")
@@ -447,14 +535,18 @@ async def contact_mail(
     if api_key_response["valid"]:
         api_key_data = api_key_response["data"]
         if api_key_data["type"] == "contact":
-            respose = await email.send_hlomail(
+
+            respose = await email.send_contact_hlomail(
                 recipient_email=api_key_data["email"],
-                subject=contact_data.name + "Contacted You",
-                body=contact_data.email,
-                user_email=api_key_data["email"],
+                api_title=api_key_data["title"],
+                mail_data=contact_data,
             )
-            logs = Logs(await session.get("email"))
-            await logs.set(api_key=contact_data.api_key)
+            logs = Logs(api_key_data["email"])
+            await logs.set(
+                api_key=contact_data.api_key,
+                type="contact",
+                time=datetime.datetime.now(),
+            )
             respose.update({"valid": True})
             return JSONResponse(
                 respose,
@@ -478,15 +570,17 @@ async def noreply_mail(
     if api_key_response["valid"]:
         api_key_data = api_key_response["data"]
         if api_key_data["type"] == "noreply":
-            respose = await email.send_hlomail(
-                recipient_email=noreply_data.recipient_email,
-                subject=noreply_data.subject,
-                body=noreply_data.body,
-                user_email=api_key_data["email"],
+            respose = await email.send_noreply_hlomail(
+                sender=api_key_data["email"],
+                mail_data=noreply_data,
             )
             respose.update({"valid": True})
-            logs = Logs(await session.get("email"))
-            await logs.set(api_key=noreply_data.api_key)
+            logs = Logs(api_key_data["email"])
+            await logs.set(
+                api_key=noreply_data.api_key,
+                type="noreply",
+                time=datetime.datetime.now(),
+            )
             return JSONResponse(
                 respose,
             )

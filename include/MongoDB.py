@@ -29,6 +29,9 @@ class MongoDB:
         self.database = client[database]
         self.collection = self.database.get_collection(collection)
 
+    def get_connection(self):
+        return self.collection
+
     async def is_exist(self, key: str, value):
         data = await self.get(key=key, value=value)
         return data is not None
