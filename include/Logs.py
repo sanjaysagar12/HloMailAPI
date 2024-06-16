@@ -2,7 +2,9 @@ from collections import defaultdict
 import datetime
 import json
 from .MongoDB import MongoDB
+import pytz
 
+IST = pytz.timezone('Asia/Kolkata')
 
 class Logs:
     def __init__(self, email) -> None:
@@ -80,7 +82,9 @@ class Logs:
     def _group_by_hour(self, data):
         hour_counts = defaultdict(int)
         for document in data:
-            hour = document["time"].hour
+            time_utc = document["time"]
+            time_ist = time_utc.astimezone(IST)
+            hour = time_ist.hour
             hour_counts[hour] += 1
         return hour_counts
 
@@ -94,9 +98,13 @@ class Logs:
     def _group_by_week(self, data):
         week_counts = defaultdict(int)
         for document in data:
-            week = document["time"].isocalendar()[1]
-            week_counts[week] += 1
-        return week_counts
+            day_of_week = document["time"].weekday()  # 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
+            week_counts[self._day_of_week_to_string(day_of_week)] += 1
+        return dict(week_counts)
+
+    def _day_of_week_to_string(self, day_of_week):
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        return days[day_of_week]
 
     def _group_by_year(self, data):
         year_counts = defaultdict(int)

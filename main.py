@@ -4,7 +4,7 @@ import datetime
 from typing import Optional
 import sys
 import aiohttp
-from fastapi import FastAPI, Header, Request, HTTPException, Depends
+from fastapi import FastAPI, Header, Request, HTTPException, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, ValidationError
 from fastapi.responses import JSONResponse
@@ -29,10 +29,7 @@ root_path = os.path.dirname(__file__)
 app = FastAPI()
 
 # Configure CORS
-origins = [
-    "http://localhost:5173",  # Assuming your React app runs on port 5173
-    "https://hlomail-frontend.sanjaysagar.com",
-]
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -91,7 +88,7 @@ class AddApiKeyRequest(BaseModel):
 class NoReplyMailRequest(BaseModel):
     api_key: str
     recipient: Optional[str] = None
-    recipient_email: EmailStr
+    recipient_email: list
     subject: Optional[str] = None
     header: Optional[str] = None
     body: Optional[str] = None
@@ -288,6 +285,32 @@ async def profile(request: Request, token: str = Depends(get_token_header)):
     raise HTTPException(status_code=401, detail=result["error"])
 
 
+@app.get("/logo")
+async def get_logo(request: Request, token: str = Depends(get_token_header)):
+    client_ip = request.client.host
+    user_agent = request.headers.get("User-Agent")
+    result = await verify_session(
+        token=token,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+
+    if result["valid"]:
+        email = await session.get("email")
+        logo_name = email.split("@")[0]
+        try:
+            # /home/sagar/HloMail/HloMailAPI/images/logos/nsanjaysagar02@gmail.com-logo
+            # Asynchronously read SVG content from file
+            with open(f"{root_path}/images/logos/{logo_name}-logo", "r") as file:
+                svg_content = file.read()
+
+            # Return SVG as response
+            return Response(content=svg_content, media_type="image/svg+xml")
+
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="SVG file not found")
+
+
 @app.post("/dashboard")
 async def dashboard(request: Request, token: str = Depends(get_token_header)):
 
@@ -355,6 +378,7 @@ async def add_apikey(
         user_agent=user_agent,
     )
     if project_data.api_type not in api_types:
+        print("<", project_data.api_type, ">")
         return {
             "valid": False,
             "error": "invalid api type",
@@ -440,7 +464,6 @@ class LogsRequest(BaseModel):
     time_period: str
 
 
-
 @app.post("/logs")
 async def logs(
     request: Request,
@@ -460,8 +483,6 @@ async def logs(
 
     log_result = ""
     if result["valid"]:
-        if logs_data.api_key == "*":
-            logs_data.api_key = None
 
         if logs_data.time_period == "today":
             log_result = await logs.get_todays_data(logs_data.api_key, brief=True)
@@ -478,9 +499,8 @@ async def logs(
 @app.get("/inbox-message/{message_id}")
 async def inbox(
     request: Request,
-    message_id:str,
+    message_id: str,
     token: str = Depends(get_token_header),
-    
 ):
     # verifying the session
     client_ip = request.client.host
@@ -491,14 +511,18 @@ async def inbox(
         client_ip=client_ip,
         user_agent=user_agent,
     )
-   
- 
+
     if result["valid"]:
 
-        inbox = await Inbox.get_message_by_id(await session.get("email"),message_id=message_id)
+        inbox = await Inbox.get_message_by_id(
+            await session.get("email"), message_id=message_id
+        )
         print(inbox)
-        await Inbox.update_readed_status(email= await session.get("email"),message_id=message_id)
+        await Inbox.update_readed_status(
+            email=await session.get("email"), message_id=message_id
+        )
         return {"valid": True, "inbox": inbox}
+
 
 @app.get("/inbox")
 async def inbox(
@@ -514,13 +538,12 @@ async def inbox(
         client_ip=client_ip,
         user_agent=user_agent,
     )
-   
- 
+
     if result["valid"]:
 
         inbox = await Inbox.get_all_message_titles(await session.get("email"))
         print(inbox)
-  
+
         return {"valid": True, "inbox": inbox}
 
 

@@ -4,7 +4,7 @@ from random import randint
 from .MongoDB import MongoDB
 from pydantic import EmailStr
 from passlib.context import CryptContext
-
+from .Logo import generate_logo
 staging_collection = MongoDB("admin", "staging")
 authentication_collection = MongoDB("admin", "authentication")
 users_collection = MongoDB("admin", "users")
@@ -110,5 +110,7 @@ class Authentication:
             staging_data["credit"] = 2
             await users_collection.set(staging_data)
             await staging_collection.delete({"email": email})
+            logo_name = email.split("@")[0]
+            generate_logo(f"{logo_name}-logo")
             return {"valid": True, "message": "User verified successfully."}
         return {"valid": False, "error": "Wrong OTP. Please try again."}
