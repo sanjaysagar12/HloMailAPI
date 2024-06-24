@@ -198,8 +198,8 @@ class EMail:
         """Send an email and decrement user's credit by 1."""
 
         message = EmailMessage()
-        message["From"] = formataddr(("Sender Name", host_email))
-        message["To"] = formataddr(("Recipient Name", recipient_email))
+        message["From"] = formataddr(("HloMail", host_email))
+        message["To"] = formataddr((recipient_email, recipient_email))
         message["Subject"] = subject
 
         message.add_alternative(

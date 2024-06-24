@@ -4,9 +4,9 @@ import datetime
 from typing import Optional
 import sys
 import aiohttp
-from fastapi import FastAPI, Header, Request, HTTPException, Depends, Response
+from fastapi import FastAPI, Header, Request, HTTPException, Depends, Response, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, ValidationError
+from pydantic import BaseModel, EmailStr, ValidationError, Field
 from fastapi.responses import JSONResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import EmailStr
@@ -49,7 +49,7 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 
 
-email = EMail()
+hlomail = EMail()
 session = Session()
 api_types = ("contact", "noreply")
 
@@ -122,6 +122,17 @@ class NoSignupRequest(BaseModel):
 class ApiDashboardRequest(BaseModel):
     api_key: str
 
+class LogsRequest(BaseModel):
+    api_key: Optional[str] = None
+    time_period: str
+
+class ContactMailRequest(BaseModel):
+    api_key: str
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    message: Optional[str] = None
+    phone_no: Optional[str] = None
+    template: Optional[str] = None
 
 async def get_token_header(authorization: Optional[str] = Header(None)):
     if authorization is None:
@@ -152,7 +163,7 @@ async def register_user(request_model: RegisterRequest):
 
     if response["valid"]:
         otp = response["otp"]
-        await email.send(
+        await hlomail.send(
             recipient_email=request_model.email,
             subject="OTP",
             body=str(otp),
@@ -214,9 +225,9 @@ async def forgot_password(request: Request, request_model: ForgotPasswordRequest
         raise HTTPException(status_code=404, detail="User not found")
 
     token = serializer.dumps(request_model.email, salt="password-reset-salt")
-    reset_link = f"http://localhost:8000/reset-password?token={token}"
+    reset_link = f"http://dashboard.hlomail.in/reset-password?token={token}"
 
-    await email.send(
+    await hlomail.send(
         recipient_email=request_model.email,
         subject="OTP",
         body=str(reset_link),
@@ -459,9 +470,6 @@ async def delete_apikey(
     raise HTTPException(status_code=401, detail=result["error"])
 
 
-class LogsRequest(BaseModel):
-    api_key: Optional[str] = None
-    time_period: str
 
 
 @app.post("/logs")
@@ -497,7 +505,7 @@ async def logs(
 
 
 @app.get("/inbox-message/{message_id}")
-async def inbox(
+async def inbox_message(
     request: Request,
     message_id: str,
     token: str = Depends(get_token_header),
@@ -547,42 +555,113 @@ async def inbox(
         return {"valid": True, "inbox": inbox}
 
 
-@app.post("/contact-mail")
+@app.post("/v1/contact-mail")
 async def contact_mail(
-    contact_data: ContactMailRequest,
+    api_key: str = Form(...),
+    name: str = Form(None),
+    email: str = Form(None),
+    message: str = Form(None),
+    phone_no: str = Form(None),
+    template: str = Form(None),
 ):
+    print(f"Received API Key: {api_key}")
+    print(f"Received Name: {name}")
+    print(f"Received Email: {email}")
+    print(f"Received Message: {message}")
+    print(f"Received Phone Number: {phone_no}")
 
-    api_key = APIKey()
-    api_key_response = await api_key.get(key="api_key", value=contact_data.api_key)
-    print(api_key_response)
+    if api_key is None:
+        raise HTTPException(
+            status_code=400,
+            detail="API key is required for authentication",
+        )
+
+    contact_data_dict = {
+        "api_key": api_key,
+        "name": name,
+        "email": email,
+        "message": message,
+        "phone_no": phone_no,
+        "template": template,
+    }
+    contact_data = ContactMailRequest.parse_obj(contact_data_dict)
+
+    api_key_instance = APIKey()
+    api_key_response = await api_key_instance.get(key="api_key", value=api_key)
+
     if api_key_response["valid"]:
         api_key_data = api_key_response["data"]
         if api_key_data["type"] == "contact":
-
-            respose = await email.send_contact_hlomail(
+            print(contact_data.template)
+            response = await hlomail.send_contact_hlomail(
                 recipient_email=api_key_data["email"],
                 api_title=api_key_data["title"],
                 mail_data=contact_data,
             )
+
             logs = Logs(api_key_data["email"])
             await logs.set(
                 api_key=contact_data.api_key,
                 type="contact",
                 time=datetime.datetime.now(),
             )
-            respose.update({"valid": True})
-            return JSONResponse(
-                respose,
-            )
+
+            # Generate your HTML content here
+            html_content = generate_html_response(response,api_key_data["title"])
+
+            # Return HTML response
+            return Response(content=html_content, media_type="text/html")
+
         raise HTTPException(
             status_code=401,
-            detail="your api token type is not sutable for contact mail",
+            detail="Your API token type is not suitable for contact mail",
         )
 
     raise HTTPException(status_code=401, detail=api_key_response["error"])
 
 
-@app.post("/noreply-mail")
+def generate_html_response(response_data,title):
+    # Example function to generate HTML content based on response_data
+    html_content = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Request Notification</title>
+            <!-- Bootstrap CSS -->
+            <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                .custom-bg {
+                    '{background-color: #6f42c1;'
+                    'color: white;}'
+                }
+                
+            </style>
+        </head>
+        <body>
+            <div class="container mt-5">
+                <div class="card custom-bg">
+                    <div class="card-body text-center">
+                        <h1 class="card-title">Request Notified</h1>
+                        <p class="card-text">Your request has been successfully notified to the {title}.</p>
+                       
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bootstrap JS and dependencies -->
+            <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+            <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        </body>
+        </html>
+
+    """
+    return html_content
+
+
+@app.post("/v1/noreply-mail")
 async def noreply_mail(
     noreply_data: NoReplyMailRequest,
 ):
@@ -593,7 +672,7 @@ async def noreply_mail(
     if api_key_response["valid"]:
         api_key_data = api_key_response["data"]
         if api_key_data["type"] == "noreply":
-            respose = await email.send_noreply_hlomail(
+            respose = await hlomail.send_noreply_hlomail(
                 sender=api_key_data["email"],
                 mail_data=noreply_data,
             )

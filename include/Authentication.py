@@ -5,6 +5,7 @@ from .MongoDB import MongoDB
 from pydantic import EmailStr
 from passlib.context import CryptContext
 from .Logo import generate_logo
+from .Inbox import add_message
 staging_collection = MongoDB("admin", "staging")
 authentication_collection = MongoDB("admin", "authentication")
 users_collection = MongoDB("admin", "users")
@@ -107,10 +108,15 @@ class Authentication:
             del staging_data["expire_on"]
             await authentication_collection.set(staging_data)
             del staging_data["password"]
-            staging_data["credit"] = 2
+            staging_data["credit"] = 2000
             await users_collection.set(staging_data)
             await staging_collection.delete({"email": email})
             logo_name = email.split("@")[0]
             generate_logo(f"{logo_name}-logo")
+            await add_message(
+                email=str(email),
+                title="Welcome to HloMail",
+                message="",
+            )
             return {"valid": True, "message": "User verified successfully."}
         return {"valid": False, "error": "Wrong OTP. Please try again."}

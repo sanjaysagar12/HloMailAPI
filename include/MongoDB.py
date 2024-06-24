@@ -20,7 +20,7 @@ db_name = db_config["db_name"]
 
 # Connecting to the Database
 client = motor.motor_asyncio.AsyncIOMotorClient(
-    f"mongodb://{db_username}:{db_password}@{db_hostname}:{db_port}/"
+    f"mongodb://{db_username}:{db_password}@{db_hostname}:{db_port}/{db_name}"
 )
 
 
