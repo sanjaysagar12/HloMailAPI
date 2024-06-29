@@ -8,7 +8,7 @@ IST = pytz.timezone('Asia/Kolkata')
 
 class Logs:
     def __init__(self, email) -> None:
-        self.logs_collection = MongoDB("admin", f"{email}-logs")
+        self.logs_collection = MongoDB("hlomail_db", f"{email}-logs")
 
     async def get(self, query):
         data = await self.logs_collection.get(query=query)

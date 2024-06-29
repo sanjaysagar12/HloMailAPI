@@ -4,7 +4,7 @@ import uuid
 import json
 
 # Initialize the database connection
-db = MongoDB("admin", "users")
+db = MongoDB("hlomail_db", "users")
 collection = db.get_connection()
 
 # Function to add a message to the inbox

@@ -6,9 +6,9 @@ from pydantic import EmailStr
 from passlib.context import CryptContext
 from .Logo import generate_logo
 from .Inbox import add_message
-staging_collection = MongoDB("admin", "staging")
-authentication_collection = MongoDB("admin", "authentication")
-users_collection = MongoDB("admin", "users")
+staging_collection = MongoDB("hlomail_db", "staging")
+authentication_collection = MongoDB("hlomail_db", "authentication")
+users_collection = MongoDB("hlomail_db", "users")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

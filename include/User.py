@@ -2,7 +2,7 @@ import json
 
 from .MongoDB import MongoDB
 
-user_collection = MongoDB("admin", "users")
+user_collection = MongoDB("hlomail_db", "users")
 
 
 class User:

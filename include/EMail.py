@@ -27,7 +27,7 @@ smtp_username = smtp_config["smtp_username"]
 smtp_password = smtp_config["smtp_password"]
 
 
-user_collection = MongoDB("admin", "users")
+user_collection = MongoDB("hlomail_db", "users")
 
 
 class EMail:

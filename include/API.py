@@ -3,7 +3,7 @@ import json
 import secrets
 from .MongoDB import MongoDB
 
-api_keys_collection = MongoDB("admin", "api_keys")
+api_keys_collection = MongoDB("hlomail_db", "api_keys")
 
 
 class APIKey:

@@ -2,3 +2,5 @@ include/__pycache__/
 __pycache__/
 include/test.py
 test.py
+config.json
+images/logos/

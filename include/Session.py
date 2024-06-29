@@ -3,7 +3,7 @@ import datetime
 
 from .MongoDB import MongoDB
 
-session_collection = MongoDB("admin", "session")
+session_collection = MongoDB("hlomail_db", "session")
 
 
 class Session:
