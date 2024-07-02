@@ -77,6 +77,176 @@ class EmailNoreplyTemplates:
         body = replace_custom_tags(("[>","<]"),("<div style='border-left: 4px solid #4CAF50; padding-left: 10px; margin-top: 10px;'>","</div>"),body)
         body = body.replace("\n","<br>")
         return body 
+    
+    def modernMinimalist(self, mail_data):
+        body = f"""
+        <html>
+            <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.5; color: #333;">
+                {f"<h1 style='color: #2196F3; text-align: center;'>{mail_data.header},</h1>" if mail_data.header else ""}
+                {mail_data.body if mail_data.body else ""}
+                <br>
+                {mail_data.footer if mail_data else ""}
+            </body>
+        </html>
+
+        """
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='background-color: #f9f9f9; padding: 20px; border-radius: 8px;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body 
+        
+    def elegantStylish(self,mail_data):
+        body = f"""
+        <html>
+            <body style="font-family: Georgia, serif; line-height: 1.6; color: #333; background-color: #f4f4f4; padding: 20px;">
+                <div style="background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    {f"<h1 style='color: #e91e63;'>{mail_data.header}</h1>"}
+                    {mail_data.body if mail_data.body else ""}
+                    <br>
+                    {mail_data.footer if mail_data else ""}
+                </div>
+            </body>
+        </html>
+        """
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='border-left: 4px solid #e91e63; padding-left: 10px; margin-top: 10px;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body 
+
+
+    def classicFormal(self, mail_data):
+        body = f"""
+        <html>
+            <body style='font-family: Times New Roman, Times, serif; line-height: 1.6; color: #333;'>
+                {f"<h1 style='color: #000080;'>{mail_data.header}</h1>"}
+                {mail_data.body if mail_data.body else ""}
+                <br>
+                {mail_data.footer if mail_data else ""}
+            </body>
+        </html>
+        """
+
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='margin: 10px 0; padding: 10px; background-color: #f0f0f0; border-left: 4px solid #000080;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body 
+        "Hello priya"
+
+    def vibrantEnergetic(self, mail_data):
+        body = f"""
+        <html>
+            <body style='font-family: 'Trebuchet MS', Helvetica, sans-serif; line-height: 1.6; color: #333; background-color: #fffbcc; padding: 20px;'>
+                <div style='background-color: #ffffff; padding: 20px; border-radius: 8px; border: 2px solid #ff9800;'>
+                    {f"<h1 style='color: #ff9800;'>{mail_data.header}</h1>"}
+                    {mail_data.body if mail_data.body else ""}
+                    <br>
+                    {mail_data.footer if mail_data else ""}
+                </div>
+            </body>
+        </html>
+
+        """
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='background-color: #fff3e0; padding: 10px; border-left: 4px solid #ff9800; margin-top: 10px;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body    
+        
+            
+    def boldVibrant(self,mail_data):
+        body = f"""
+        <html>
+            <body style="font-family: 'Verdana', sans-serif; line-height: 1.6; color: #444; background-color: #f2f2f2; padding: 20px;">
+                <div style="background-color: #fff; padding: 20px; border-radius: 10px; border-top: 5px solid #ff5722;">
+                    {f"<h1 style='color: #ff5722;'>{mail_data.header}</h1>"}
+                    {mail_data.body if mail_data.body else ""}
+                    <br>
+                    {mail_data.footer if mail_data else ""}
+                </div>
+            </body>
+        </html>
+
+        """
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='border-left: 4px solid #ff5722; padding-left: 10px; margin-top: 10px;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body  
+
+    def softCalm(self,mail_data):
+        body = f"""
+        <html>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; line-height: 1.6; color: #555; background-color: #e0f7fa; padding: 20px;">
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #b2ebf2;">
+                    {f"<h1 style='color: #00acc1;'>{mail_data.header}</h1>"}
+                    {mail_data.body if mail_data.body else ""}
+                    <br>
+                    {mail_data.footer if mail_data else ""}
+                </div>
+            </body>
+        </html>
+
+        """
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='border-left: 4px solid #00acc1; padding-left: 10px; margin-top: 10px;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body  
+
+    def luxuriousElegant(self,mail_data):
+        body = f"""
+        <html>
+            <body style="font-family: 'Georgia', serif; line-height: 1.6; color: #333; background-color: #f8f8f8; padding: 20px;">
+                <div style="background-color: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    {f"<h1 style='color: #b71c1c;'>{mail_data.header}</h1>"}
+                    {mail_data.body if mail_data.body else ""}
+                    <br>
+                    {mail_data.footer if mail_data else ""}
+                </div>
+            </body>
+        </html>
+
+        """
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='border-left: 4px solid #b71c1c; padding-left: 10px; margin-top: 10px;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body
+        
+    def funFriendly(self,mail_data):
+        body = f"""
+        <html>
+            <body style="font-family: 'Comic Sans MS', 'Comic Sans', cursive; line-height: 1.6; color: #444; background-color: #fff8e1; padding: 20px;">
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 10px; border: 2px solid #ffeb3b;">
+                    {f"<h1 style='color: #ffeb3b;'>{mail_data.header}</h1>"}
+                     {mail_data.body if mail_data.body else ""}
+                    <br>
+                    {mail_data.footer if mail_data else ""}
+                </div>
+            </body>
+        </html>
+
+         """
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='border-left: 4px solid #ffeb3b; padding-left: 10px; margin-top: 10px;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body
+
+    def sleekModern(self,mail_data):
+        body = f"""
+        <html>
+            <body style="font-family: 'Roboto', sans-serif; line-height: 1.6; color: #333; background-color: #eeeeee; padding: 20px;">
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 10px; border-top: 5px solid #607d8b;">
+                    {f"<h1 style='color: #607d8b;'>{mail_data.header}</h1>"}
+                    {mail_data.body if mail_data.body else ""}
+                    <br>
+                    {mail_data.footer if mail_data else ""}
+                </div>
+            </body>
+        </html>
+
+        """
+        body = replace_asterisks(body)
+        body = replace_custom_tags(("[>","<]"),("<div style='border-left: 4px solid #607d8b; padding-left: 10px; margin-top: 10px;'>","</div>"),body)
+        body = body.replace("\n","<br>")
+        return body
+
 
 class EmailContactTemplates:
     def __init__(self):
@@ -170,7 +340,7 @@ class EmailContactTemplates:
     def vibrantEnergetic(self,api_title, mail_data):
         body = f"""
         <html>
-            <body style="font-family: 'Trebuchet MS', Helvetica, sans-serif; line-height: 1.6; color: #333; background-color: #fffbcc; padding: 20px;">
+            <body style='font-family: 'Trebuchet MS', Helvetica, sans-serif; line-height: 1.6; color: #333; background-color: #fffbcc; padding: 20px;'>
                 <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 2px solid #ff9800;">
                     <h1 style="color: #ff9800;">Hey there,</h1>
                     <p>Exciting news! You've got a new message on <strong>{api_title}</strong> from <strong>{mail_data.name if mail_data.name else "New Customer"}</strong>.</p>
@@ -189,6 +359,7 @@ class EmailContactTemplates:
 
         """
         return body
+
     def boldVibrant(self,api_title,mail_data):
         body = f"""
         <html>
@@ -211,6 +382,7 @@ class EmailContactTemplates:
 
         """
         return body
+
     def softCalm(self,api_title,mail_data):
         body = f"""
         <html>
